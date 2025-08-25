@@ -44,23 +44,23 @@ brew install curl jq openssl
    ```bash
    wget https://raw.githubusercontent.com/weeweefinch/Cert-Automations/refs/heads/main/ssl_upload_script.sh
    ```
-   
    *Make sure to set as executable before use*
    ```bash
    chmod +x ssl_upload_script.sh
    ```
 
 2. **Get your Cloudflare credentials:**
-   - **Zone ID**: Found in your Cloudflare dashboard → Select your domain → Right sidebar "Zone ID"
+   - **Zone ID**: Found in your Cloudflare dashboard → Find your domain → Click vertical ellipsis sidebar and click " Copy zone ID"
    - **API Token**: Cloudflare dashboard → Profile → API Tokens → Create Token
      - Use "Custom token" with these permissions:
        - Zone: `Zone:Read`
        - Zone: `SSL and Certificates:Edit`
-   *Future support of config file coming to store and pass securely. Not ideal to pass as args, but for POC its ok, I think... (famous last words). See "Using Environment Variables" in later section if a requirment.*
+    - See "Using Environment Variables" in later section to pass securely. Not ideal to pass as args, but for POC its ok, I think...
 
-3. **Prepare your SSL certificates:**
+
+3. **Prepare your SSL certificates from Vault or Provider:**
    - Download your SSL certificate files (sometimes called a SSL Bundle) from you Vault or Provider (i.e. Porkbun) where they they were generated.
-   - Typically named `public.key.pem` (certificate) and `private.key.pem` (private key)
+   - Typically named `domain.key.pem` (ssl certificate) and `private.key.pem` (private key), but you may see `public.key.pem` (certificate) which will not be used in this script.
 
 ## Usage
 
@@ -103,13 +103,15 @@ brew install curl jq openssl
 
 ### Using Environment Variables
 
-Set environment variabless in terminal session **before executing script** to avoid passing credentials via command line:
+Set environment variables *before executing* script to avoid passing credentials via command line:
 
 ```bash
 export CF_ZONE_ID="your_zone_id"
 export CF_API_TOKEN="your_api_token"
-export SSL_CERT_FILE="/path/to/certificate.pem"
+export SSL_CERT_FILE="/path/to/domain-key.pem"
 export SSL_KEY_FILE="/path/to/private-key.pem"
+
+./ssl_upload_script.sh
 ```
 
 ## Command Line Options
@@ -146,8 +148,7 @@ For automated certificate renewal, you can create a simple workflow:
    ```
 
 ### Automation with Cron
-*(not yet tested, use at your own risk)
-
+#### (not yet tested, use at your own risk)
 Add to your crontab for monthly certificate updates:
 
 ```bash
@@ -172,11 +173,28 @@ The script performs comprehensive validation:
 
 ### Common Issues
 
+**"Found public key instead of SSL certificate"**
+- You're using a public key file instead of an SSL certificate
+- SSL certificates start with `-----BEGIN CERTIFICATE-----`
+- Public keys start with `-----BEGIN PUBLIC KEY-----`
+- Download the complete SSL certificate bundle from your provider
+
+**"Invalid certificate format"**
+- Ensure the file contains a valid X.509 SSL certificate
+- File should start with `-----BEGIN CERTIFICATE-----`
+- Check that the file isn't corrupted or truncated
+
+**"Invalid private key format"**
+- Private key should be in PEM format
+- Should start with `-----BEGIN RSA PRIVATE KEY-----`, `-----BEGIN EC PRIVATE KEY-----`, or `-----BEGIN PRIVATE KEY-----`
+- Ensure the file isn't corrupted
+
 **"Missing required commands"**
 - Install the missing dependencies listed in the Prerequisites section
 
 **"Certificate and private key do not match"**
 - Ensure you're using the correct certificate and key files from the same SSL certificate package
+- Files might be from different certificates or one might be corrupted
 
 **"Cloudflare API validation failed"**
 - Verify your Zone ID and API Token are correct
@@ -242,7 +260,6 @@ This project is released under the MIT License.
 - Certificate update support
 - Comprehensive validation
 - Error handling and logging
-- Colorized output
 
 ## Support
 
