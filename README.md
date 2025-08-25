@@ -1,6 +1,6 @@
-# Porkbun SSL Certificate to Cloudflare Upload Script
+# SSL Certificate to Cloudflare Upload Script
 
-A comprehensive bash script to easily upload and manage SSL certificates from Porkbun to Cloudflare's Web Application Firewall (WAF). This script includes prerequisite checking, input validation, and supports both new certificate uploads and updates to existing certificates.
+A comprehensive bash script to easily upload and manage SSL certificates from your local device to Cloudflare's Web Application Firewall (WAF). This script includes prerequisite checking, input validation, and supports both new certificate uploads and updates to existing certificates.
 
 ## Features
 
@@ -10,7 +10,6 @@ A comprehensive bash script to easily upload and manage SSL certificates from Po
 - ✅ **Update Support**: Can update existing certificates or create new ones
 - ✅ **Error Handling**: Comprehensive error handling with clear messages
 - ✅ **Logging**: Detailed logging of all operations
-- ✅ **Colorized Output**: Easy-to-read colored terminal output
 - ✅ **Flexible Configuration**: Support for command-line arguments and environment variables
 
 ## Prerequisites
@@ -43,13 +42,12 @@ brew install curl jq openssl
 
 1. **Download the script:**
    ```bash
-   curl -O https://raw.githubusercontent.com/weeweefinch/Cert-Automations/refs/heads/main/ssl_upload_script.sh
-   chmod +x porkbun-to-cloudflare-ssl.sh
+   wget https://raw.githubusercontent.com/weeweefinch/Cert-Automations/refs/heads/main/ssl_upload_script.sh
    ```
    
-   *Make sure to set as executable*
+   *Make sure to set as executable before use*
    ```bash
-   chmod +x porkbun-to-cloudflare-ssl.sh
+   chmod +x ssl_upload_script.sh
    ```
 
 2. **Get your Cloudflare credentials:**
@@ -58,9 +56,10 @@ brew install curl jq openssl
      - Use "Custom token" with these permissions:
        - Zone: `Zone:Read`
        - Zone: `SSL and Certificates:Edit`
+   *Future support of config file coming to store and pass securely. Not ideal to pass as args, but for POC its ok, I think... (famous last words). See "Using Environment Variables" in later section if a requirment.*
 
-3. **Prepare your SSL certificates from Porkbun:**
-   - Download your SSL certificate files from Porkbun
+3. **Prepare your SSL certificates:**
+   - Download your SSL certificate files (sometimes called a SSL Bundle) from you Vault or Provider (i.e. Porkbun) where they they were generated.
    - Typically named `public.key.pem` (certificate) and `private.key.pem` (private key)
 
 ## Usage
@@ -68,14 +67,14 @@ brew install curl jq openssl
 ### Basic Usage
 
 ```bash
-./porkbun-to-cloudflare-ssl.sh -z "your_zone_id" -t "your_api_token"
+./ssl_upload_script.sh -z "your_zone_id" -t "your_api_token"
 ```
 
 ### Advanced Usage Examples
 
 **With custom certificate file paths:**
 ```bash
-./porkbun-to-cloudflare-ssl.sh \
+./ssl_upload_script.sh \
   -z "your_zone_id" \
   -t "your_api_token" \
   -c "/path/to/certificate.pem" \
@@ -85,12 +84,12 @@ brew install curl jq openssl
 
 **Update existing certificate:**
 ```bash
-./porkbun-to-cloudflare-ssl.sh -z "your_zone_id" -t "your_api_token" --update
+./ssl_upload_script.sh -z "your_zone_id" -t "your_api_token" --update
 ```
 
 **Update specific certificate by ID:**
 ```bash
-./porkbun-to-cloudflare-ssl.sh \
+./ssl_upload_script.sh \
   -z "your_zone_id" \
   -t "your_api_token" \
   --update \
@@ -99,20 +98,18 @@ brew install curl jq openssl
 
 **With verbose output:**
 ```bash
-./porkbun-to-cloudflare-ssl.sh -z "your_zone_id" -t "your_api_token" -v
+./ssl_upload_script.sh -z "your_zone_id" -t "your_api_token" -v
 ```
 
 ### Using Environment Variables
 
-Set environment variables to avoid passing credentials via command line:
+Set environment variabless in terminal session **before executing script** to avoid passing credentials via command line:
 
 ```bash
 export CF_ZONE_ID="your_zone_id"
 export CF_API_TOKEN="your_api_token"
 export SSL_CERT_FILE="/path/to/certificate.pem"
 export SSL_KEY_FILE="/path/to/private-key.pem"
-
-./porkbun-to-cloudflare-ssl.sh
 ```
 
 ## Command Line Options
@@ -145,16 +142,17 @@ For automated certificate renewal, you can create a simple workflow:
 1. **Download new certificates from Porkbun** (manual or automated)
 2. **Run the update script:**
    ```bash
-   ./porkbun-to-cloudflare-ssl.sh --update -z "$CF_ZONE_ID" -t "$CF_API_TOKEN"
+   ./ssl_upload_script.sh --update -z "$CF_ZONE_ID" -t "$CF_API_TOKEN"
    ```
 
 ### Automation with Cron
+*(not yet tested, use at your own risk)
 
 Add to your crontab for monthly certificate updates:
 
 ```bash
 # Run on the 1st day of every month at 2 AM
-0 2 1 * * /path/to/porkbun-to-cloudflare-ssl.sh --update -z "$CF_ZONE_ID" -t "$CF_API_TOKEN" >> /var/log/ssl-update.log 2>&1
+0 2 1 * * /path/to/ssl_upload_script.sh --update -z "$CF_ZONE_ID" -t "$CF_API_TOKEN" >> /var/log/ssl-update.log 2>&1
 ```
 
 ## Validation Process
@@ -195,7 +193,7 @@ The script performs comprehensive validation:
 Enable verbose output to see detailed API requests and responses:
 
 ```bash
-./porkbun-to-cloudflare-ssl.sh -z "zone_id" -t "api_token" --verbose
+./ssl_upload_script.sh -z "zone_id" -t "api_token" --verbose
 ```
 
 ### Log Files
@@ -214,7 +212,7 @@ The script creates a log file `ssl_upload.log` in the same directory with detail
 Set appropriate permissions for security:
 
 ```bash
-chmod 700 porkbun-to-cloudflare-ssl.sh  # Script executable by owner only
+chmod 700 ssl_upload_script.sh          # Script executable by owner only
 chmod 600 private.key.pem               # Private key readable by owner only
 chmod 644 public.key.pem                # Certificate readable by owner and group
 ```
@@ -238,7 +236,7 @@ This project is released under the MIT License.
 
 ## Changelog
 
-### Version 1.0
+### Version 0.1
 - Initial release
 - Basic certificate upload functionality
 - Certificate update support
@@ -255,4 +253,4 @@ If you encounter any issues or need help:
 3. Ensure all prerequisites are met
 4. Verify your Cloudflare API token permissions
 
-For bugs or feature requests, please open an issue in the GitHub repository.
+For bugs or feature requests, please open an issue in the GitHub repository. But I may never update again. This was a one off for a POC. ;)
