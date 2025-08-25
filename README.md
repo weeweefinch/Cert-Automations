@@ -43,7 +43,12 @@ brew install curl jq openssl
 
 1. **Download the script:**
    ```bash
-   curl -O https://raw.githubusercontent.com/your-repo/porkbun-to-cloudflare-ssl.sh
+   curl -O https://raw.githubusercontent.com/weeweefinch/Cert-Automations/refs/heads/main/ssl_upload_script.sh
+   chmod +x porkbun-to-cloudflare-ssl.sh
+   ```
+   
+   *Make sure to set as executable*
+   ```bash
    chmod +x porkbun-to-cloudflare-ssl.sh
    ```
 
