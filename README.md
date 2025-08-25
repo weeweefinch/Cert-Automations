@@ -139,7 +139,7 @@ export SSL_KEY_FILE="/path/to/private-key.pem"
 
 For automated certificate renewal, you can create a simple workflow:
 
-1. **Download new certificates from Porkbun** (manual or automated)
+1. **Download new certificates from Vault or Provider** (manual or automated)
 2. **Run the update script:**
    ```bash
    ./ssl_upload_script.sh --update -z "$CF_ZONE_ID" -t "$CF_API_TOKEN"
