@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# SSL Certificate to Cloudflare Upload Script
-# Author: Wesley Finch
-# Version: 0.1
-# Description: Upload/update SSL certificates from local storage to Cloudflare for use in WAF
+# Porkbun SSL Certificate to Cloudflare Upload Script
+# Author: Auto-generated script for SSL certificate management
+# Version: 1.0
+# Description: Upload/update SSL certificates from Porkbun to Cloudflare
 
 set -euo pipefail
 
@@ -36,10 +36,10 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-Upload SSL certificates to Cloudflare
+Upload SSL certificates from Porkbun to Cloudflare
 
 OPTIONS:
-    -z, --zone-id ZONE_ID          Cloudflare Zone ID (required)
+    -z, --zone-id ZONE_ID           Cloudflare Zone ID (required)
     -t, --token TOKEN              Cloudflare API token (required)
     -c, --cert-file CERT_FILE      Path to public certificate file (default: public.key.pem)
     -k, --key-file KEY_FILE        Path to private key file (default: private.key.pem)
@@ -116,24 +116,111 @@ validate_cert_files() {
         exit 1
     fi
     
-    # Validate certificate format
-    if ! openssl x509 -in "$cert_file" -text -noout &> /dev/null; then
-        print_status "$RED" "❌ Invalid certificate format in: $cert_file"
+    # Check if file contains a public key instead of certificate
+    if grep -q "BEGIN PUBLIC KEY" "$cert_file"; then
+        print_status "$RED" "❌ Found public key instead of SSL certificate in: $cert_file"
+        echo ""
+        echo "The file contains a public key, but an SSL certificate is required."
+        echo "SSL certificates should start with: -----BEGIN CERTIFICATE-----"
+        echo "Public keys start with:             -----BEGIN PUBLIC KEY-----"
+        echo ""
+        echo "Please ensure you have downloaded the complete SSL certificate bundle"
+        echo "which should include:"
+        echo "  • SSL Certificate file (*.crt, *.pem, *.cert)"
+        echo "  • Private Key file (*.key, *.pem)"
+        echo ""
+        echo "Available files in current directory:"
+        ls -la *.{crt,pem,cert,key} 2>/dev/null || echo "  No certificate files found"
         exit 1
     fi
     
-    # Validate private key format
-    if ! openssl rsa -in "$key_file" -check -noout &> /dev/null; then
+    # Validate certificate format
+    if ! openssl x509 -in "$cert_file" -text -noout &> /dev/null; then
+        print_status "$RED" "❌ Invalid certificate format in: $cert_file"
+        echo ""
+        echo "Expected format: SSL Certificate (X.509)"
+        echo "File should start with: -----BEGIN CERTIFICATE-----"
+        echo ""
+        echo "Current file content preview:"
+        head -5 "$cert_file"
+        exit 1
+    fi
+    
+    # Validate private key format (try different key types)
+    local key_valid=false
+    for key_type in rsa ec pkcs8; do
+        case $key_type in
+            rsa)
+                if openssl rsa -in "$key_file" -check -noout &> /dev/null; then
+                    key_valid=true
+                    break
+                fi
+                ;;
+            ec)
+                if openssl ec -in "$key_file" -check -noout &> /dev/null; then
+                    key_valid=true
+                    break
+                fi
+                ;;
+            pkcs8)
+                if openssl pkey -in "$key_file" -check -noout &> /dev/null; then
+                    key_valid=true
+                    break
+                fi
+                ;;
+        esac
+    done
+    
+    if [[ "$key_valid" != "true" ]]; then
         print_status "$RED" "❌ Invalid private key format in: $key_file"
+        echo ""
+        echo "Private key should be in PEM format and start with one of:"
+        echo "  -----BEGIN RSA PRIVATE KEY-----"
+        echo "  -----BEGIN EC PRIVATE KEY-----"
+        echo "  -----BEGIN PRIVATE KEY-----"
+        echo ""
+        echo "Current file content preview:"
+        head -3 "$key_file"
         exit 1
     fi
     
     # Check if certificate and key match
-    local cert_modulus=$(openssl x509 -noout -modulus -in "$cert_file" 2>/dev/null | openssl md5)
-    local key_modulus=$(openssl rsa -noout -modulus -in "$key_file" 2>/dev/null | openssl md5)
+    local cert_modulus=""
+    local key_modulus=""
     
-    if [[ "$cert_modulus" != "$key_modulus" ]]; then
+    # Get certificate public key
+    cert_modulus=$(openssl x509 -noout -pubkey -in "$cert_file" 2>/dev/null | openssl md5 2>/dev/null)
+    
+    # Get private key public key (try different formats)
+    for key_type in rsa ec pkey; do
+        case $key_type in
+            rsa)
+                if key_modulus=$(openssl rsa -in "$key_file" -pubout -outform PEM 2>/dev/null | openssl md5 2>/dev/null); then
+                    break
+                fi
+                ;;
+            ec)
+                if key_modulus=$(openssl ec -in "$key_file" -pubout -outform PEM 2>/dev/null | openssl md5 2>/dev/null); then
+                    break
+                fi
+                ;;
+            pkey)
+                if key_modulus=$(openssl pkey -in "$key_file" -pubout -outform PEM 2>/dev/null | openssl md5 2>/dev/null); then
+                    break
+                fi
+                ;;
+        esac
+    done
+    
+    if [[ "$cert_modulus" != "$key_modulus" ]] || [[ -z "$cert_modulus" ]] || [[ -z "$key_modulus" ]]; then
         print_status "$RED" "❌ Certificate and private key do not match"
+        echo ""
+        echo "This usually means:"
+        echo "  • Files are from different SSL certificates"
+        echo "  • One of the files is corrupted"
+        echo "  • Wrong file format"
+        echo ""
+        echo "Please ensure both files are from the same SSL certificate package"
         exit 1
     fi
     
@@ -365,7 +452,7 @@ main() {
     
     # Generate certificate name if not provided
     if [[ -z "$cert_name" ]]; then
-        cert_name="ssl-cert-$(date +%Y%m%d-%H%M%S)"
+        cert_name="porkbun-ssl-$(date +%Y%m%d-%H%M%S)"
     fi
     
     # Enable verbose output if requested
