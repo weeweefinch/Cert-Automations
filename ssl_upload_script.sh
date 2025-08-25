@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Porkbun SSL Certificate to Cloudflare Upload Script
-# Author: Auto-generated script for SSL certificate management
-# Version: 1.0
-# Description: Upload/update SSL certificates from Porkbun to Cloudflare
+# SSL Certificate to Cloudflare Upload Script
+# Author: Wesley Finch
+# Version: 0.1
+# Description: Upload/update SSL certificates from local storage to Cloudflare for use in WAF
 
 set -euo pipefail
 
@@ -36,10 +36,10 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-Upload SSL certificates from Porkbun to Cloudflare
+Upload SSL certificates to Cloudflare
 
 OPTIONS:
-    -z, --zone-id ZONE_ID           Cloudflare Zone ID (required)
+    -z, --zone-id ZONE_ID          Cloudflare Zone ID (required)
     -t, --token TOKEN              Cloudflare API token (required)
     -c, --cert-file CERT_FILE      Path to public certificate file (default: public.key.pem)
     -k, --key-file KEY_FILE        Path to private key file (default: private.key.pem)
@@ -365,7 +365,7 @@ main() {
     
     # Generate certificate name if not provided
     if [[ -z "$cert_name" ]]; then
-        cert_name="porkbun-ssl-$(date +%Y%m%d-%H%M%S)"
+        cert_name="ssl-cert-$(date +%Y%m%d-%H%M%S)"
     fi
     
     # Enable verbose output if requested
