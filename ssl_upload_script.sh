@@ -2,7 +2,7 @@
 
 # Porkbun SSL Certificate to Cloudflare Upload Script
 # Author: Auto-generated script for SSL certificate management
-# Version: 1.0
+# Version: 1.1 - Fixed API endpoints and payload format
 # Description: Upload/update SSL certificates from Porkbun to Cloudflare
 
 set -euo pipefail
@@ -103,7 +103,7 @@ validate_cert_files() {
     local cert_file=$1
     local key_file=$2
     
-    print_status "$BLUE" "🔐 Validating certificate files..."
+    print_status "$BLUE" "🔍 Validating certificate files..."
     
     # Check if files exist
     if [[ ! -f "$cert_file" ]]; then
@@ -242,12 +242,17 @@ validate_cloudflare_creds() {
     local zone_id=$1
     local api_token=$2
     
-    print_status "$BLUE" "☁️  Validating Cloudflare credentials..."
+    print_status "$BLUE" "☁️ Validating Cloudflare credentials..."
     
     # Test API token and get zone information
     local response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id" \
         -H "Authorization: Bearer $api_token" \
         -H "Content-Type: application/json")
+    
+    # Debug output for troubleshooting
+    if [[ "$verbose" == "true" ]]; then
+        echo "API Response: $response"
+    fi
     
     local success=$(echo "$response" | jq -r '.success // false')
     
@@ -269,14 +274,15 @@ find_existing_cert() {
     
     print_status "$BLUE" "🔍 Searching for existing certificates..."
     
-    local response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/ssl/certificates" \
+    # FIXED: Use the correct API endpoint for custom certificates
+    local response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/custom_certificates" \
         -H "Authorization: Bearer $api_token" \
         -H "Content-Type: application/json")
     
     local success=$(echo "$response" | jq -r '.success // false')
     
     if [[ "$success" != "true" ]]; then
-        print_status "$YELLOW" "⚠️  Could not retrieve existing certificates"
+        print_status "$YELLOW" "⚠️ Could not retrieve existing certificates"
         return 1
     fi
     
@@ -309,18 +315,21 @@ upload_certificate() {
     local cert_content=$(cat "$cert_file")
     local key_content=$(cat "$key_file")
     
-    # Create JSON payload
+    # FIXED: Create JSON payload with correct format for Cloudflare API
     local payload=$(jq -n \
         --arg certificate "$cert_content" \
         --arg private_key "$key_content" \
-        --arg name "$cert_name" \
+        --arg bundle_method "ubiquitous" \
+        --arg type "sni_custom" \
         '{
             certificate: $certificate,
             private_key: $private_key,
-            name: $name
+            bundle_method: $bundle_method,
+            type: $type
         }')
     
-    local response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$zone_id/ssl/certificates" \
+    # FIXED: Use the correct API endpoint for custom certificates
+    local response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$zone_id/custom_certificates" \
         -H "Authorization: Bearer $api_token" \
         -H "Content-Type: application/json" \
         -d "$payload")
@@ -330,13 +339,17 @@ upload_certificate() {
     if [[ "$success" != "true" ]]; then
         local error_msg=$(echo "$response" | jq -r '.errors[0].message // "Unknown error"')
         print_status "$RED" "❌ Certificate upload failed: $error_msg"
+        echo ""
+        echo "Full response:"
+        echo "$response" | jq '.'
         exit 1
     fi
     
     local cert_id=$(echo "$response" | jq -r '.result.id')
     print_status "$GREEN" "✅ Certificate uploaded successfully!"
     echo "  Certificate ID: $cert_id"
-    echo "  Certificate Name: $cert_name"
+    echo "  Certificate Bundle Method: ubiquitous"
+    echo "  Certificate Type: sni_custom"
 }
 
 # Function to update existing certificate
@@ -354,18 +367,21 @@ update_certificate() {
     local cert_content=$(cat "$cert_file")
     local key_content=$(cat "$key_file")
     
-    # Create JSON payload
+    # FIXED: Create JSON payload with correct format for Cloudflare API
     local payload=$(jq -n \
         --arg certificate "$cert_content" \
         --arg private_key "$key_content" \
-        --arg name "$cert_name" \
+        --arg bundle_method "ubiquitous" \
+        --arg type "sni_custom" \
         '{
             certificate: $certificate,
             private_key: $private_key,
-            name: $name
+            bundle_method: $bundle_method,
+            type: $type
         }')
     
-    local response=$(curl -s -X PATCH "https://api.cloudflare.com/client/v4/zones/$zone_id/ssl/certificates/$cert_id" \
+    # FIXED: Use the correct API endpoint for custom certificates
+    local response=$(curl -s -X PATCH "https://api.cloudflare.com/client/v4/zones/$zone_id/custom_certificates/$cert_id" \
         -H "Authorization: Bearer $api_token" \
         -H "Content-Type: application/json" \
         -d "$payload")
@@ -375,12 +391,16 @@ update_certificate() {
     if [[ "$success" != "true" ]]; then
         local error_msg=$(echo "$response" | jq -r '.errors[0].message // "Unknown error"')
         print_status "$RED" "❌ Certificate update failed: $error_msg"
+        echo ""
+        echo "Full response:"
+        echo "$response" | jq '.'
         exit 1
     fi
     
     print_status "$GREEN" "✅ Certificate updated successfully!"
     echo "  Certificate ID: $cert_id"
-    echo "  Certificate Name: $cert_name"
+    echo "  Certificate Bundle Method: ubiquitous"
+    echo "  Certificate Type: sni_custom"
 }
 
 # Main function
@@ -477,7 +497,7 @@ main() {
             if existing_cert_id=$(find_existing_cert "$zone_id" "$api_token" "$cert_name"); then
                 print_status "$BLUE" "Found existing certificate: $existing_cert_id"
             else
-                print_status "$YELLOW" "⚠️  No existing certificate found, creating new one instead"
+                print_status "$YELLOW" "⚠️ No existing certificate found, creating new one instead"
                 update_mode=false
             fi
         fi
