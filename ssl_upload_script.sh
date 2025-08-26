@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Porkbun SSL Certificate to Cloudflare Upload Script
-# Author: Auto-generated script for SSL certificate management
+#SSL Certificate to Cloudflare Upload Script
+# Author: Wesley Finch
 # Version: 1.1 - Fixed API endpoints and payload format
-# Description: Upload/update SSL certificates from Porkbun to Cloudflare
+# Description: Upload/update SSL certificates from local/Provider to Cloudflare
 
 set -euo pipefail
 
